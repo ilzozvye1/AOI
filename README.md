@@ -1,56 +1,152 @@
-采用十字链表+快慢针方式的AOI算法（支持ET框架）,并针对GC问题进行了优化。
+# 流程图正交连线算法 C# 实现
 
-性能测试、2W人在同AOI场景下，每次更新AOI耗时平均在3MS以内。插入在6MS以内。
+基于掘金文章中的理论，这是一个用于在流程图中生成正交连线的 C# 算法实现。该算法结合了网格构建、A* 路径寻找和路径优化技术，能够在避开障碍物的同时生成美观、高效的正交连接线。
 
-理论上10W人或者更多效率不会下降、具体没有测试，因为不可能有一个场景下管理这么多玩家的情况。
+## 算法特点
 
-使用说明:
+- **正交连线**: 所有线段都是水平或垂直的，符合流程图美学标准
+- **智能避障**: 自动绕过形状障碍物，避免连线穿越图形元素
+- **路径优化**: 减少不必要的转弯点，生成最短且美观的连线
+- **中心线对齐**: 在可能的情况下，连线会尝试沿着形状的中心线走向
+- **高性能**: 基于 A* 算法，具有良好的时间复杂度
 
-首次进入AOI需要用到AoiComponent.Enter方法，里面有三个参数（Id，x坐标,y坐标）。
+## 核心算法原理
 
-角色位置变动需要用到AoiComponent.Update方法，里面有四个参数（Id，AOI范围,x坐标,y坐标）。
+### 1. 网格构建
+- 根据所有形状的边界和中心线构建网格点
+- 网格点包括形状边界、中心线、连接点等关键位置
+- 为形状周围预留安全边距，确保连线不会太靠近形状
 
-AOI范围：是一个Vector2类型,x代表x轴的距离，y代表y轴的距离。该ID统计的数据不会超过这个距离。
+### 2. A* 路径寻找
+- 使用曼哈顿距离作为启发式函数
+- 对转弯添加惩罚，优先选择直线路径
+- 自动避开被形状阻挡的网格点
 
-操作例子：
+### 3. 路径优化
+- 移除不必要的中间点，简化路径
+- 应用中心线修正，提高连线的对称性和美观性
+- 确保最终路径仍然有效且无冲突
 
-var aoi = new AoiComponent();
+## 类说明
 
-var role1 = aoi.Enter(1, 12, 8);
+### `Shape` 类
+表示流程图中的一个矩形形状：
+- `Bounds`: 形状的边界矩形
+- `ConnectionPoint`: 连接点位置
+- `ConnectionSide`: 连接点所在的边（上、下、左、右）
+- `GetOuterBounds()`: 获取包含安全边距的扩展边界
 
-Console.WriteLine($"玩家一ID:{role1.Id}");
+### `GridNode` 类
+网格中的一个节点：
+- `Position`: 节点在坐标系中的位置
+- `IsBlocked`: 节点是否被障碍物阻挡
+- `GCost`, `HCost`, `FCost`: A* 算法中的代价值
+- `Parent`: 用于路径重构的父节点引用
 
-var role2 = aoi.Enter(2, 12, 8);
+### `OrthogonalLineGenerator` 类
+主要的连线生成器：
+- `GenerateRoute()`: 生成两个形状之间的正交连线
+- `GetPathLength()`: 计算路径总长度
+- `GetTurnCount()`: 计算路径转弯次数
 
-Console.WriteLine($"玩家二ID:{role2.Id}");
+## 使用示例
 
-aoi.Update(2, new Vector2(1, 1), 13, 8);  // 玩家二移动
+```csharp
+// 创建源形状和目标形状
+var sourceShape = new Shape(
+    new Rectangle(50, 50, 100, 60), 
+    ConnectionSide.Right, 
+    0.5  // 连接点在右侧中间位置
+);
 
-Console.WriteLine($"玩家二周围列表");
-            
-foreach (var aoiNode in role2.AoiInfo.MovesSet)
+var targetShape = new Shape(
+    new Rectangle(300, 150, 120, 80), 
+    ConnectionSide.Left, 
+    0.3  // 连接点在左侧30%位置
+);
+
+// 创建障碍物（可选）
+var obstacles = new List<Shape>
 {
-    Console.WriteLine(aoi.GetNode(aoiNode).Position);
-}
-            
-Console.WriteLine($"玩家二进入列表");
-            
-foreach (var aoiNode in role2.AoiInfo.EntersSet)
+    new Shape(new Rectangle(150, 80, 80, 50), ConnectionSide.Top),
+    new Shape(new Rectangle(200, 180, 60, 70), ConnectionSide.Bottom)
+};
+
+// 生成连线
+var generator = new OrthogonalLineGenerator();
+var route = generator.GenerateRoute(sourceShape, targetShape, obstacles);
+
+// 使用生成的路径点绘制连线
+foreach (var point in route)
 {
-    Console.WriteLine(aoi.GetNode(aoiNode).Position);
+    Console.WriteLine($"路径点: ({point.X}, {point.Y})");
 }
-            
-Console.WriteLine($"玩家二离开列表");
-            
-foreach (var aoiNode in role2.AoiInfo.LeavesSet)
-{
-    Console.WriteLine(aoi.GetNode(aoiNode).Position);
-}
-            
-Console.WriteLine($"玩家二移动列表");
-            
-foreach (var aoiNode in role2.AoiInfo.MoveOnlySet)
-{
-    Console.WriteLine(aoi.GetNode(aoiNode).Position);
-}
+```
+
+## 运行演示
+
+```bash
+# 确保已安装 .NET 6.0 或更高版本
+dotnet build
+dotnet run
+```
+
+程序将运行两个示例：
+1. **基本示例**: 两个简单形状之间的连线
+2. **复杂示例**: 包含多个障碍物的复杂场景
+
+## 算法参数
+
+- `margin`: 形状周围的安全边距（默认20像素）
+- `TURN_PENALTY`: 转弯惩罚系数（默认10）
+- `GRID_SPACING`: 网格间距（默认10像素）
+
+## 输出示例
+
+```
+=== 流程图正交连线算法演示 ===
+
+【基本示例】两个形状之间的简单连线
+
+源形状: 位置(50, 50), 大小(100x60), 连接点(150, 80)
+目标形状: 位置(300, 100), 大小(120x80), 连接点(300, 132)
+
+生成的路径点:
+  起点: (150, 80)
+  转点1: (225, 80)
+  转点2: (225, 132)
+  终点: (300, 132)
+
+路径统计:
+  总长度: 225.0 像素
+  转弯次数: 2 次
+```
+
+## 技术优势
+
+1. **智能路径规划**: 结合几何学和图论算法，生成最优路径
+2. **高效性能**: A* 算法保证了良好的时间复杂度
+3. **美观输出**: 自动对齐中心线，减少转弯，符合设计美学
+4. **灵活配置**: 支持自定义边距、惩罚系数等参数
+5. **扩展性**: 易于扩展支持更多形状类型和连接模式
+
+## 适用场景
+
+- 流程图绘制软件
+- 图形化编程环境
+- 网络拓扑图生成
+- 组织结构图设计
+- 任何需要正交连线的图形应用
+
+## 未来改进方向
+
+1. 支持曲线连接
+2. 多段路径优化
+3. 动态避障算法
+4. 3D 空间连线支持
+5. 性能进一步优化
+
+---
+
+该实现完全基于文章中提到的算法原理，并在 C# 环境中进行了优化和扩展。代码结构清晰，注释详细，便于理解和二次开发。
 

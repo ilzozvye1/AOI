@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "+/+VIHjyJLtYoGoz9kz+vt0rj7KSyomt2XOzlwZdigEc+YFwaeJXCEVw5MuRcLAHtB2+GGJANYwV/55zDC8exQ==",
+  "success": true,
+  "projectFilePath": "/workspace/OrthogonalRouting.csproj",
+  "expectedPackageFiles": [
+    "/home/ubuntu/.nuget/packages/microsoft.win32.systemevents/7.0.0/microsoft.win32.systemevents.7.0.0.nupkg.sha512",
+    "/home/ubuntu/.nuget/packages/system.drawing.common/7.0.0/system.drawing.common.7.0.0.nupkg.sha512"
+  ],
+  "logs": []
+}
