@@ -1,56 +1,112 @@
-采用十字链表+快慢针方式的AOI算法（支持ET框架）,并针对GC问题进行了优化。
+# C# 正交连线算法实现
 
-性能测试、2W人在同AOI场景下，每次更新AOI耗时平均在3MS以内。插入在6MS以内。
+基于掘金文章《流程图——正交连线的算法的一种简单实现》的 C# 版本实现。
 
-理论上10W人或者更多效率不会下降、具体没有测试，因为不可能有一个场景下管理这么多玩家的情况。
+## 算法特性
 
-使用说明:
+这个 C# 实现包含了文章中提到的核心算法特性：
 
-首次进入AOI需要用到AoiComponent.Enter方法，里面有三个参数（Id，x坐标,y坐标）。
+### 1. 基于最短路径的算法
+- 使用 A* 算法进行路径查找
+- 采用曼哈顿距离作为启发式函数
+- 优先寻找最短路径
 
-角色位置变动需要用到AoiComponent.Update方法，里面有四个参数（Id，AOI范围,x坐标,y坐标）。
+### 2. 减少转折点
+- 在路径成本计算中加入转折惩罚
+- 优先选择直线路径，减少不必要的转折
+- 自动优化路径，移除冗余的转折点
 
-AOI范围：是一个Vector2类型,x代表x轴的距离，y代表y轴的距离。该ID统计的数据不会超过这个距离。
+### 3. 中心线校正
+- 路径后处理，尝试将路径对齐到中心线
+- 提高视觉对称性和美观度
 
-操作例子：
+### 4. 网格化路径规划
+- 基于障碍物和边界创建"标尺线"
+- 在标尺线交点处创建网格节点
+- 确保路径不穿越障碍物
 
-var aoi = new AoiComponent();
+## 核心组件
 
-var role1 = aoi.Enter(1, 12, 8);
+### 数据结构
+- `Point`: 二维点结构，支持基本运算
+- `Rectangle`: 矩形结构，用于表示障碍物
+- `GridNode`: 网格节点，用于 A* 算法
+- `Direction`: 方向枚举
 
-Console.WriteLine($"玩家一ID:{role1.Id}");
+### 主要类
+- `OrthogonalLineRouter`: 主要的路径规划类
 
-var role2 = aoi.Enter(2, 12, 8);
+## 使用示例
 
-Console.WriteLine($"玩家二ID:{role2.Id}");
+```csharp
+var router = new OrthogonalLineRouter();
 
-aoi.Update(2, new Vector2(1, 1), 13, 8);  // 玩家二移动
+// 简单连接（无障碍物）
+var start = new Point(50, 50);
+var end = new Point(200, 150);
+var path = router.FindPath(start, end);
 
-Console.WriteLine($"玩家二周围列表");
-            
-foreach (var aoiNode in role2.AoiInfo.MovesSet)
+// 带障碍物的连接
+var obstacles = new List<Rectangle>
 {
-    Console.WriteLine(aoi.GetNode(aoiNode).Position);
-}
-            
-Console.WriteLine($"玩家二进入列表");
-            
-foreach (var aoiNode in role2.AoiInfo.EntersSet)
-{
-    Console.WriteLine(aoi.GetNode(aoiNode).Position);
-}
-            
-Console.WriteLine($"玩家二离开列表");
-            
-foreach (var aoiNode in role2.AoiInfo.LeavesSet)
-{
-    Console.WriteLine(aoi.GetNode(aoiNode).Position);
-}
-            
-Console.WriteLine($"玩家二移动列表");
-            
-foreach (var aoiNode in role2.AoiInfo.MoveOnlySet)
-{
-    Console.WriteLine(aoi.GetNode(aoiNode).Position);
-}
+    new Rectangle(100, 75, 80, 60),   // 障碍物 1
+    new Rectangle(180, 120, 60, 80)   // 障碍物 2
+};
+var pathWithObstacles = router.FindPath(start, end, obstacles);
+```
+
+## 算法流程
+
+1. **数据准备**: 计算网格边界，基于起点、终点和障碍物
+2. **构建网格**: 创建标尺线并在交点处生成网格节点
+3. **路径查找**: 使用 A* 算法找到最短路径
+4. **路径优化**: 移除不必要的转折点
+5. **中心线校正**: 对齐到中心线以提高美观度
+
+## 关键参数
+
+- `TURN_PENALTY`: 转折惩罚权重 (默认: 1.0)
+- `GRID_SPACING`: 网格间距 (默认: 20.0)
+- `OBSTACLE_MARGIN`: 障碍物边距 (默认: 10.0)
+
+## 运行程序
+
+```bash
+dotnet run
+```
+
+程序将运行三个示例：
+1. 简单路径（无障碍物）
+2. 带障碍物的路径
+3. 复杂多障碍物场景
+
+## 算法优势
+
+1. **智能避障**: 自动避开障碍物，保持安全距离
+2. **美观性**: 减少转折点，提供视觉上更加清晰的路径
+3. **灵活性**: 可配置参数，适应不同场景需求
+4. **性能**: 基于网格的方法，计算效率较高
+
+## 与原文算法的对应关系
+
+| 原文概念 | C# 实现 |
+|---------|---------|
+| 数据准备 | `CalculateGridBounds()` |
+| 构建网格点 | `CreateGrid()` |
+| 构建图结构 | 网格节点连接逻辑 |
+| 运行 A* 算法 | `AStar()` 方法 |
+| 中心线校正 | `ApplyCenterLineCorrection()` |
+
+## 扩展可能
+
+1. 支持曲线连接（如 Catmull-Rom 样条）
+2. 更复杂的障碍物形状支持
+3. 动态权重调整
+4. 多线程路径计算优化
+
+## 参考资料
+
+- [掘金原文](https://juejin.cn/post/6844903657087959054)
+- A* 算法相关资料
+- 计算几何相关算法
 
